@@ -25,9 +25,7 @@
 (require '[adzerk.boot-cljs :refer [cljs]]
          '[adzerk.boot-cljs-repl :refer [cljs-repl]]
          '[adzerk.boot-reload :refer [reload]]
-         '[pandeiro.boot-http :refer [serve]]
-         '[clj-time.core :as t]
-         '[clj-time.periodic :as p])
+         '[pandeiro.boot-http :refer [serve]])
 
 (deftask dev
   "dev clojure"
