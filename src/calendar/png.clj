@@ -1,5 +1,5 @@
 (ns calendar.png
-  "Bake data into PNGs."
+  "utility for writing metadata into pngs"
   (:import (java.io File)
            (com.sun.imageio.plugins.png PNGMetadata)
            (java.awt.image RenderedImage)
@@ -8,7 +8,7 @@
 
 (defn set-metadata
   "Set a metadata field on a PNG, creating metadata if needed."
-  [^IIOImage image field-name data-string]
+  [^IIOImage image [field-name data-string]]
   (if (nil? (.getMetadata image))
     (.setMetadata image (PNGMetadata.)))
   (let [metadata (.getMetadata image)]
@@ -25,6 +25,7 @@
 
 (defn bake
   "Bake keywords into an image"
-  [original-image-file output-image-file [field-name data-string]]
+  [original-image-file output-image-file metadata]
   (let [image (IIOImage. (ImageIO/read (File. original-image-file)) nil nil)]
-    (write-image output-image-file (set-metadata image field-name data-string))))
+    (write-image output-image-file
+                (reduce set-metadata image metadata))))
