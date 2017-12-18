@@ -1,4 +1,4 @@
-(ns calendar.png
+(ns is.jonathan.png-lib
   "utility for writing metadata into pngs"
   (:import (java.io File)
            (com.sun.imageio.plugins.png PNGMetadata)
