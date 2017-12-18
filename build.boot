@@ -1,7 +1,6 @@
 (set-env!
  :source-paths #{"src"}
  :resource-paths #{"html"}
-
  :dependencies '[
                  [org.clojure/core.async "RELEASE"]
                  [org.clojure/clojurescript "RELEASE"]
@@ -17,10 +16,6 @@
                  [weasel "RELEASE" :scope "test"]                   ; needed for boot-reload
                  [org.clojure/tools.nrepl "RELEASE" :scope "test"]] ; needed for cljs-repl
 )
-
-(task-options!
-  pom {:project 'calendar
-       :version "0.1.0"})
 
 (require '[adzerk.boot-cljs :refer [cljs]]
          '[adzerk.boot-cljs-repl :refer [cljs-repl]]

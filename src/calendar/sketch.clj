@@ -1,35 +1,40 @@
 (ns calendar.sketch
+  "Recreation of popul aere produkt wall calendar"
   (:require [quil.core :as q :include-macros true]
             [quil.middleware :as m]
+            [clojure.string :as s]
             [clj-time.core :as t]
             [clj-time.periodic :as p]
-            [clj-time.predicates :as pred]))
+            [clj-time.predicates :as d])
+  (use 'calendar.png))
 
-(def first-of-year (t/date-time 2017 1 1))
+(def first-of-year (t/date-time (t/year (t/now)) 1 1))
 (def days (take 365 (p/periodic-seq first-of-year (t/days 1))))
-(def month-days (partition-by pred/last-day-of-month? days))
+(def months (partition-by d/last-day-of-month? days))
 
-(def ratio [31 12])
-(def size (min
-            (q/floor (/ (q/screen-width) (first ratio)))
-            (q/floor (/ (q/screen-height) (last ratio)))))
-(def width (* size (first ratio)))
-(def height (* size (last ratio)))
+; for horizontal orientation...
+(def width (q/screen-width))
+(def height (q/floor (*
+                      (/ width (count months))    ; number of months
+                      (max (map count months))))) ; longest number of days in a month
 
-; the setup function run once, and returns the initial state
 (defn setup []
+  "Return the initial state in setup"
   (q/frame-rate 30) ; target 30 frames per second
-  {:time 0
-   :hue 0
-   :brightness 255
-   :debug true
-   :bold-font (q/create-font "Menlo-Bold" 12 true)
-   :regular-font (q/create-font "Menlo-Regular" 12 true)
-   :days days})
+  (let [font-name "Menlo"
+        font-size 12]
+    {:time 0
+     :hue 0
+     :brightness 255
+     :debug true
+     :font-name font-name
+     :font-size font-size
+     :bold-font (q/create-font (str fontname "-Bold") font-size true)
+     :regular-font (q/create-font (str fontname "-Regular") font-size true)
+     :days (map day-to-grid days)}))
 
-; mouse-moved runs every time the mouse is moved
-; and gets passed an object with the current mouse x and y, and previous mouse x and y
 (defn mouse-moved [state mouse]
+  "Update the background hue with mouse x and brightness with mouse y"
   (let [hue (q/map-range (:x mouse) 0 (q/width) 0 255)
         brightness (q/map-range (:y mouse) 0 (q/height) 0 255)]
     (assoc state :hue hue :brightness brightness)))
@@ -44,11 +49,58 @@
       (= :s key) (assoc state :save-frame true)
       :else (do (println (str event)) state))))
 
+(defn snapshot [state]
+  "Save a png with the code and state in its metadata"
+  (let [frame-count (q/frame-count)
+        filename-flip (str "flip-" frame-count ".png")
+        filename-flop (str "flop-" frame-count ".png")
+        filename-out (str "calendar-" frame-count ".png")]
+    (q/save filename-flip)
+    (png/bake filename-flip filename-flop ["code" (slurp "src/calendar/sketch.clj")])
+    (png/bake filename-flop filename-flip ["state" (str state)])
+    (png/bake filename-flip filename-out ["author" "Jonathan Dahan"])))
+
 ; update-state runs before every frame
 (defn update-state [state]
-  (let [t (/ (q/frame-count) (q/target-frame-rate))]
-    (if (state :save-frame) (q/save-frame "calendar-####.png"))
-    (assoc state :time t :save-frame false)))
+  "Update the time, and handle saving a snapshot"
+  (let [now (/ (q/frame-count) (q/target-frame-rate))]
+    (if (:snapshot state) (snapshot state))
+    (assoc state :time now :snapshot false)))
+
+(defn map-day-to-grid [day]
+  "Maps a day to a normalized grid with 12 rows and 31+ columns"
+  (let [day-of-month (t/day day)
+        day-of-week (t/day-of-week day)
+        month-of-year (t/month day)
+        day-of-week-of-the-first-day-of-the-month (t/day-of-week (t/first-day-of-the-month day))
+        number-of-months (count months)
+        longest-month-in-days (max (map count months))
+        x (/ (+ day-of-month day-of-week-of-the-first-day-of-the-month) longest-month-in-days)
+        y (/ month-of-year number-of-months)]
+    {:x x :y y :bold (= 1 day-of-week) :text (str day-of-month)}))
+
+(defn prettify [state]
+  "Only show human-understandable state - numbers, strings, booleans, round time"
+  (let [filtered (juxt state :time :hue :brightness :font-name :font-size)
+        time-normalized (assoc filtered :time (q/floor (:time filtered)))
+        newlines (s/replace (str time-normalized) "," "\n")
+        no-brackets (s/replace newlines "}" "")
+        state-info (s/replace no-brackets "{" " ")])
+  state-info)
+
+(defn draw-debug [state]
+  (let [text-size 20]
+    line-height (* 1.25 text-size)
+    x 0
+    y (- (q/height) text-size))
+  (q/fill 0 0 255)
+  (q/text-size text-size)
+  (q/text-align :right)
+  (q/text "'d' toggles debug
+          's' screenshots
+          'q' quits" (- (q/width) 10) (- y 10 (* 2 line-height)))
+  (q/text-align :left)
+  (q/text (prettify state) x line-height))
 
 (defn draw-state [state]
   (q/color-mode :hsb)
@@ -56,34 +108,11 @@
   (q/no-stroke)
   (q/fill 0 0 255)
   (q/text-align :right)
-  (doseq [day (:days state)]
-    (let [day-of-month (t/day day)
-          day-of-week (t/day-of-week day)
-          month-of-year (t/month day)
-          first-day-of-week (t/day-of-week (t/first-day-of-the-month day))
-          x (* 0.8 (/ (+ first-day-of-week day-of-month) 31) (q/width))
-          y (* 0.9 (/ month-of-year 12) (q/height))]
-      (if (= 1 day-of-week)
-        (q/text-font (:bold-font state))
-        (q/text-font (:regular-font state)))
-      (q/text (str day-of-month) x y)))
+  (doseq [day (:grid state)]
+    (q/text-font (if (:bold day) (:bold-font state) (:regular-font state)))
+    (q/text (:text day) (* 0.8 (q/width) (:x day)) (* 0.9 (q/height) (:y day))))
 
-  (if (:debug state)
-    (let [text-size 20
-          line-height (* 1.25 text-size)
-          x 0
-          y (- (q/height) text-size)]
-      (q/fill 0 0 255)
-      (q/text-size text-size)
-      (q/text-align :right)
-      (q/text "'d' toggles debug
-              's' screenshots
-              'q' quits" (- (q/width) 10) (- y 10 (* 2 line-height)))
-      (q/text-align :left)
-      (let [newlines (clojure.string/replace (str (assoc state :time (q/floor (:time state)))) "," "\n")
-            no-brackets (clojure.string/replace newlines "}" "")
-            state-info (clojure.string/replace no-brackets "{" " ")]
-        (q/text state-info 0 line-height)))))
+  (if (:debug state) (draw-debug state)))
 
 (q/defsketch calendar
   :host "calendar"
