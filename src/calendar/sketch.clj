@@ -52,13 +52,13 @@
 (defn snapshot [state]
   "Save a png with the code and state in its metadata"
   (let [frame-count (q/frame-count)
-        filename-flip (str "flip-" frame-count ".png")
-        filename-flop (str "flop-" frame-count ".png")
         filename-out (str "calendar-" frame-count ".png")]
-    (q/save filename-flip)
-    (png/bake filename-flip filename-flop ["code" (slurp "src/calendar/sketch.clj")])
-    (png/bake filename-flop filename-flip ["state" (str state)])
-    (png/bake filename-flip filename-out ["author" "Jonathan Dahan"])))
+    (q/save "calendar-tmp.png")
+    (png/bake "calendar-tmp.png" filename-out [
+       ["code" (slurp "src/calendar/sketch.clj")]
+       ["state" (str state)]
+       ["author" "Jonathan Dahan"]
+    ])))
 
 ; update-state runs before every frame
 (defn update-state [state]
