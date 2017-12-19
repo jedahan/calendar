@@ -4,19 +4,27 @@
             [quil.middleware :as m]
             [clojure.string :as s]
             [clj-time.core :as t]
-            [clj-time.periodic :as p]
-            [clj-time.predicates :as d])
-  (use 'calendar.png))
+            [clj-time.periodic :as p]))
 
 (def first-of-year (t/date-time (t/year (t/now)) 1 1))
 (def days (take 365 (p/periodic-seq first-of-year (t/days 1))))
-(def months (partition-by d/last-day-of-month? days))
+(def months (partition-by t/month days))
+(def number-of-months (count months))
+(def longest-month (apply max (map count months)))
 
 ; for horizontal orientation...
 (def width (q/screen-width))
-(def height (q/floor (*
-                      (/ width (count months))    ; number of months
-                      (max (map count months))))) ; longest number of days in a month
+(def height (q/floor (* number-of-months (/ width longest-month) )))
+
+(defn day-to-grid [day]
+  "Maps a day to a normalized grid with 12 rows and 31+ columns"
+  (let [day-of-month (t/day day)
+        day-of-week (t/day-of-week day)
+        month-of-year (t/month day)
+        first-day-of-month (t/day-of-week (t/first-day-of-the-month day))
+        x (/ (+ day-of-month first-day-of-month) longest-month)
+        y (/ month-of-year number-of-months)]
+    {:x x :y y :bold (= 1 day-of-week) :text (str day-of-month)}))
 
 (defn setup []
   "Return the initial state in setup"
@@ -29,9 +37,9 @@
      :debug true
      :font-name font-name
      :font-size font-size
-     :bold-font (q/create-font (str fontname "-Bold") font-size true)
-     :regular-font (q/create-font (str fontname "-Regular") font-size true)
-     :days (map day-to-grid days)}))
+     :bold-font (q/create-font (str font-name "-Bold") font-size true)
+     :regular-font (q/create-font (str font-name "-Regular") font-size true)
+     :grid (map day-to-grid days)}))
 
 (defn mouse-moved [state mouse]
   "Update the background hue with mouse x and brightness with mouse y"
@@ -53,54 +61,41 @@
   "Save a png with the code and state in its metadata"
   (let [frame-count (q/frame-count)
         filename-out (str "calendar-" frame-count ".png")]
-    (q/save "calendar-tmp.png")
-    (png/bake "calendar-tmp.png" filename-out [
-       ["code" (slurp "src/calendar/sketch.clj")]
-       ["state" (str state)]
-       ["author" "Jonathan Dahan"]
-    ])))
+    (q/save "calendar-tmp.png")))
+;    (png/bake "calendar-tmp.png" filename-out [
+;       ["code" (slurp "src/calendar/sketch.clj")]
+;       ["state" (str state)]
+;       ["author" "Jonathan Dahan"]
+;    ])))
 
-; update-state runs before every frame
 (defn update-state [state]
   "Update the time, and handle saving a snapshot"
   (let [now (/ (q/frame-count) (q/target-frame-rate))]
     (if (:snapshot state) (snapshot state))
     (assoc state :time now :snapshot false)))
 
-(defn map-day-to-grid [day]
-  "Maps a day to a normalized grid with 12 rows and 31+ columns"
-  (let [day-of-month (t/day day)
-        day-of-week (t/day-of-week day)
-        month-of-year (t/month day)
-        day-of-week-of-the-first-day-of-the-month (t/day-of-week (t/first-day-of-the-month day))
-        number-of-months (count months)
-        longest-month-in-days (max (map count months))
-        x (/ (+ day-of-month day-of-week-of-the-first-day-of-the-month) longest-month-in-days)
-        y (/ month-of-year number-of-months)]
-    {:x x :y y :bold (= 1 day-of-week) :text (str day-of-month)}))
-
 (defn prettify [state]
   "Only show human-understandable state - numbers, strings, booleans, round time"
-  (let [filtered (juxt state :time :hue :brightness :font-name :font-size)
-        time-normalized (assoc filtered :time (q/floor (:time filtered)))
-        newlines (s/replace (str time-normalized) "," "\n")
-        no-brackets (s/replace newlines "}" "")
-        state-info (s/replace no-brackets "{" " ")])
-  state-info)
+  (let [filtered (select-keys state [:time :hue :brightness :font-name :font-size])
+        time-normalized (assoc filtered :time (q/floor (:time filtered)))]
+    (-> time-normalized
+        (s/replace ", " "\n")
+        (s/replace "{" "")
+        (s/replace "}" ""))))
 
 (defn draw-debug [state]
-  (let [text-size 20]
-    line-height (* 1.25 text-size)
-    x 0
-    y (- (q/height) text-size))
-  (q/fill 0 0 255)
-  (q/text-size text-size)
-  (q/text-align :right)
-  (q/text "'d' toggles debug
-          's' screenshots
-          'q' quits" (- (q/width) 10) (- y 10 (* 2 line-height)))
-  (q/text-align :left)
-  (q/text (prettify state) x line-height))
+  (let [text-size 20
+        line-height (* 1.25 text-size)
+        x 0
+        y (- (q/height) text-size)]
+    (q/fill 0 0 255)
+    (q/text-size text-size)
+    (q/text-align :right)
+    (q/text "'d' toggles debug
+            's' screenshots
+            'q' quits" (- (q/width) 10) (- y 10 (* 2 line-height)))
+    (q/text-align :left)
+    (q/text (prettify state) x line-height)))
 
 (defn draw-state [state]
   (q/color-mode :hsb)
