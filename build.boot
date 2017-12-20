@@ -7,6 +7,7 @@
                  [pandeiro/boot-http "RELEASE"]                     ; to serve clojurescript and html
                  [quil "RELEASE"]
                  [clj-time "RELEASE"]
+                 [metapng "RELEASE"]
 
                  [org.clojure/clojure "RELEASE" :scope "test"]
                  [adzerk/boot-cljs "RELEASE" :scope "test"]         ; build cljs

@@ -1,4 +1,4 @@
-(defproject calendar "0.1.0-SNAPSHOT"
+(defproject calendar "0.1.0"
   :description "recreating popul calendar"
   :url "https://github.com/jedahan/calendar"
   :license {:name "ISCL"
@@ -6,4 +6,5 @@
   :dependencies [[org.clojure/clojure "1.8.0"]
                  [quil "2.6.0"]
                  [clj-time "RELEASE"]
-                 [clj-exif "RELEASE"]])
+                 [clj-exif "RELEASE"]
+                 [metapng "RELEASE"]])

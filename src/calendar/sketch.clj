@@ -4,7 +4,8 @@
             [quil.middleware :as m]
             [clojure.string :as s]
             [clj-time.core :as t]
-            [clj-time.periodic :as p]))
+            [clj-time.periodic :as p]
+            [metapng.core :as metapng]))
 
 (def first-of-year (t/date-time (t/year (t/now)) 1 1))
 (def days (take 365 (p/periodic-seq first-of-year (t/days 1))))
@@ -54,19 +55,19 @@
       (= :esc key) (q/exit)
       (= :q key) (q/exit)
       (= :d key) (assoc state :debug (not (:debug state)))
-      (= :s key) (assoc state :save-frame true)
+      (= :s key) (assoc state :snapshot true)
       :else (do (println (str event)) state))))
 
 (defn snapshot [state]
   "Save a png with the code and state in its metadata"
   (let [frame-count (q/frame-count)
-        filename-out (str "calendar-" frame-count ".png")]
-    (q/save "calendar-tmp.png")))
-;    (png/bake "calendar-tmp.png" filename-out [
-;       ["code" (slurp "src/calendar/sketch.clj")]
-;       ["state" (str state)]
-;       ["author" "Jonathan Dahan"]
-;    ])))
+        output-filename (str "calendar-" frame-count ".png")]
+    (q/save "calendar-tmp.png")
+    (metapng/bake "calendar-tmp.png" output-filename {
+       :code (slurp "src/calendar/sketch.clj")
+       :state (str state)
+       :author "Jonathan Dahan"
+    })))
 
 (defn update-state [state]
   "Update the time, and handle saving a snapshot"
