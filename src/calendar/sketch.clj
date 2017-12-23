@@ -60,14 +60,11 @@
 
 (defn snapshot [state]
   "Save a png with the code and state in its metadata"
-  (let [frame-count (q/frame-count)
-        output-filename (str "calendar-" frame-count ".png")]
-    (q/save "calendar-tmp.png")
-    (metapng/bake "calendar-tmp.png" output-filename {
-       :code (slurp "src/calendar/sketch.clj")
-       :state (str state)
-       :author "Jonathan Dahan"
-    })))
+  (q/save "tmp.png")
+  (metapng/bake "tmp.png" (str *ns* "-" (q/frame-count) ".png") {
+    :code (slurp (str "src/" (replace *ns* ["." "/"]) ".clj"))
+    :state (str state)
+    :author "Jonathan Dahan"}))
 
 (defn update-state [state]
   "Update the time, and handle saving a snapshot"
