@@ -1,7 +1,7 @@
 {:paths ["src"]
  :deps {
   metapng {:mvn/version "0.1" }
-  quil {:mvn/version "RELEASE"}
+  clojure2d {:mvn/version "0.0.7-SNAPSHOT"}
   clj-time {:mvn/version "RELEASE"}
   ar.com.hjg/pngj {:mvn/version "2.1.0"}
  }
