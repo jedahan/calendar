@@ -11,11 +11,10 @@
             [metapng.core :as metapng]))
 
 (defn right-text
-  "Draw text with default setting"
+  "Draw text right aligned"
   [canvas ^String s ^long x ^long y]
-  (let [width (.stringWidth (.getFontMetrics (.graphics canvas)) s)
-        new-x (- x width)]
-    (c/text canvas s new-x y)))
+  (let [width (.stringWidth (.getFontMetrics (.graphics canvas)) s)]
+    (c/text canvas s (- x width) y)))
 
 (defn day-to-grid [months-count longest-month day]
   "Maps a day to a normalized grid with 12 rows and 31+ columns"
