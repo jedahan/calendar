@@ -110,7 +110,7 @@
       months (partition-by t/month days)
       months-count (count months)
       longest-month (apply max (map count months))
-      width (.getWidth (.getScreenSize (Toolkit/getDefaultToolkit)))
+      width (* 2 (.getWidth (.getScreenSize (Toolkit/getDefaultToolkit))))
       height (m/floor (* months-count (/ width longest-month) ))
       canvas (c/make-canvas width height :high "Menlo")
       state {:time 0
@@ -118,10 +118,10 @@
              :brightness 255
              :debug true
              :font-name "Menlo"
-             :font-size 12
+             :font-size 24
              :w width
              :h height
              :days (map (partial day-to-grid months-count longest-month) days)}
       window-name (str *ns*)
       fps 30]
-  (c/show-window {:canvas canvas :window-name window-name :draw-fn draw :state state :fps fps}))
+  (c/show-window {:canvas canvas :window-name window-name :draw-fn draw :state state :fps fps :w (/ width 2) :h (/ height 2)}))
