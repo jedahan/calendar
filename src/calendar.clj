@@ -1,61 +1,61 @@
-(ns calendar.sketch
+(ns calendar
   "Recreation of popul aere produkt wall calendar"
-  (:require [clojure2d.core :refer :all]
+  (:import  [java.awt Graphics2D Toolkit FontMetrics])
+  (:require [clojure2d.core :as c]
             [clojure2d.math :as m]
-            [clojure2d.color :as c]
+            [clojure2d.color :as color]
             [clojure.string :as s]
             [clj-time.core :as t]
             [clj-time.periodic :as p]
+            [clj-time.predicates :as is]
             [metapng.core :as metapng]))
 
-(set! *warn-on-reflection* true)
-;(set! *unchecked-math* :warn-on-boxed)
+(defn right-text
+  "Draw text with default setting"
+  [canvas ^String s ^long x ^long y]
+  (let [width (.stringWidth (.getFontMetrics (.graphics canvas)) s)
+        new-x (- x width)]
+    (c/text canvas s new-x y)))
 
-(def target-frame-rate 30)
-(def first-of-year (t/date-time (t/year (t/now)) 1 1))
-(def days (take 365 (p/periodic-seq first-of-year (t/days 1))))
-(def months (partition-by t/month days))
-(def number-of-months (count months))
-(def longest-month (apply max (map count months)))
-
-; for horizontal orientation...
-;(def width (q/screen-width))
-(def target-width 1680)
-(def target-height (m/floor (* number-of-months (/ target-width longest-month) )))
-
-(defn day-to-grid [day]
+(defn day-to-grid [months-count longest-month day]
   "Maps a day to a normalized grid with 12 rows and 31+ columns"
   (let [day-of-month (t/day day)
         day-of-week (t/day-of-week day)
         month-of-year (t/month day)
         first-day-of-month (t/day-of-week (t/first-day-of-the-month day))
-        x (/ (+ day-of-month first-day-of-month) longest-month)
-        y (/ month-of-year number-of-months)]
-    {:x x :y y :bold (= 1 day-of-week) :text (str day-of-month)}))
+        this-day-of-month (+ day-of-month first-day-of-month)
+        x (/ this-day-of-month longest-month)
+        y (/ month-of-year months-count)
+        bold? (is/sunday? day)]
+    {:x x :y y :bold bold? :text (str day-of-month)}))
 
-(defmethod mouse-event [(str *ns*) :mouse-moved] [event state]
+(defmethod c/mouse-event [(str *ns*) :mouse-moved] [event state]
   "Update the background hue with mouse x and brightness with mouse y"
-  (let [hue (m/norm (mouse-x event) [0 target-width] [0 255])
-        brightness (m/norm (mouse-y event) [0 target-height] [0 255])]
+  (let [hue (m/norm (c/mouse-x event) 0 (:w state) 0 255)
+        brightness (m/norm (c/mouse-y event) 0 (:h state) 0 255)]
     (assoc state :hue hue :brightness brightness)))
 
-(defmethod key-pressed [(str *ns*) \d] [event state]
+(defmethod c/key-pressed [(str *ns*) \d] [event state]
   "d toggles debug"
   (assoc state :debug (not (:debug state))))
 
-(defmethod key-pressed [(str *ns*) \s] [event state]
+(defmethod c/key-pressed [(str *ns*) \s] [event state]
   "s makes a snapshot image"
   (assoc state :snapshot true))
 
-(defmethod key-pressed [(str *ns*) virtual-key] [event state]
+(defmethod c/key-pressed [(str *ns*) c/virtual-key] [event state]
   "q/esc for exit"
-  (condp = (key-code event)
-    :esc (close-window)
-    :q (close-window)))
+  (let [k (c/key-code event)]
+    (cond
+      (= :esc k) (assoc state :close true)
+      (= :q k) (assoc state :close true)
+      :else (do
+              (println (str "unknown key " event))
+              state))))
 
 (defn snapshot [canvas state framecount]
   "Save a png with the code and state in its metadata"
-  (save canvas "tmp.png")
+  (c/save canvas "tmp.png")
   (metapng/bake "tmp.png" (str *ns* "-" framecount ".png") {
     :code (slurp (str "src/" (replace (str *ns*) ["." "/"]) ".clj"))
     :state (str state)
@@ -70,45 +70,59 @@
         (s/replace "{" "")
         (s/replace "}" ""))))
 
-(defn draw-debug [state]
-  (let [text-size 20
-        line-height (* 1.25 text-size)
-        x 0
-        y (- target-height text-size)]
-    (set-color :white)
-    ;(q/text-align :right)
-    (text "'d' toggles debug
-            's' screenshots
-            'q' quits" (- target-width 10) (- y 10 (* 2 line-height)))
-    ;(q/text-align :left)
-    (text (prettify state) x line-height)))
+(defn draw-debug [canvas state]
+  (if (:debug state)
+    (let [text-size 20
+          line-height (* 1.25 text-size)
+          x 0
+          y (- (:h state) text-size)]
+      (-> canvas
+        ;(q/text-align :right)
+        (c/text "'d' toggles debug
+                's' screenshots
+                'q' quits" (- (:w state) 10) (- y 10 (* 2 line-height)))
+        ;(q/text-align :left)
+        (c/text (prettify state) x line-height)))))
 
-(defn draw [canvas window ^long framecount state]
-  "Draw rotating rectangle. This function is prepared to be run in refreshing thread from your window."
-  (if (= framecount 0)
-    (println (str *ns*))
-    (assoc state {:time 0
-                  :hue 0
-                  :brightness 255
-                  :debug true
-                  :font-name "Menlo"
-                  :font-size 12
-                  :grid (map day-to-grid days)}))
+(defn draw [canvas window ^long framecount _]
+  "Draw calendar maybe"
+  (let [window-state (c/get-state window)
+        snapshot? (:snapshot window-state)
+        close? (:close window-state)
+        now (/ framecount (:fps window))
+        w (c/width canvas)
+        h (c/height canvas)
+        scaled-width (* 0.8 w)
+        scaled-height (* 0.9 h)
+        state (assoc window-state :time now :w w :h h :snapshot false)
+        background-color (color/from-HSB (color/make-color (:hue state) 255 (:brightness state)))]
+    (if close? (c/close-window window))
+    (if snapshot? (snapshot canvas state framecount))
 
-  (println (:grid state))
+    (c/set-background canvas background-color)
+    (doseq [day (:days state)]
+      (c/set-font-attributes canvas (:font-size state) (if (:bold day) :bold :regular))
+      (right-text canvas (:text day) (* scaled-width (:x day)) (* scaled-height (:y day))))
+    (draw-debug canvas state)
+    state))
 
-  (let [now (/ framecount target-frame-rate)]
-    (if (:snapshot state) (snapshot state framecount))
-    (assoc state :time now :snapshot false))
-
-  (-> canvas
-    (set-background (c/from-HSB (:hue state) 140 (:brightness state)))
-    (set-color :white)
-    ;(q/text-align :right)
-    (doall [day (:grid state)]
-      (set-font-attributes (:font-size state) (if (:bold day) :bold))
-      (text (:text day) (* 0.8 target-width (:x day)) (* 0.9 target-height (:y day))))
-    (if (:debug state) (draw-debug state))))
-
-(let [canvas (make-canvas target-width target-height :high "Menlo")]
- (show-window canvas (str *ns*) target-width target-height target-frame-rate draw))
+(let [first-of-year (t/date-time (t/year (t/now)) 1 1)
+      days (take 365 (p/periodic-seq first-of-year (t/days 1)))
+      months (partition-by t/month days)
+      months-count (count months)
+      longest-month (apply max (map count months))
+      width (.getWidth (.getScreenSize (Toolkit/getDefaultToolkit)))
+      height (m/floor (* months-count (/ width longest-month) ))
+      canvas (c/make-canvas width height :high "Menlo")
+      state {:time 0
+             :hue 0
+             :brightness 255
+             :debug true
+             :font-name "Menlo"
+             :font-size 12
+             :w width
+             :h height
+             :days (map (partial day-to-grid months-count longest-month) days)}
+      window-name (str *ns*)
+      fps 30]
+  (c/show-window {:canvas canvas :window-name window-name :draw-fn draw :state state :fps fps}))
