@@ -57,19 +57,20 @@
         (s/replace "{" "")
         (s/replace "}" ""))))
 
-(defn draw-debug [canvas state]
-  (if (:debug state)
-    (let [text-size 20
-          line-height (* 1.25 text-size)
-          x 0
-          y (- (:h state) text-size)]
-      (-> canvas
-        ;(q/text-align :right)
-        (c/text "'d' toggles debug
-                's' screenshots
-                'q' quits" (- (:w state) 10) (- y 10 (* 2 line-height)))
-        ;(q/text-align :left)
-        (c/text (prettify state) x line-height)))))
+(defn snapshot [canvas state framecount]
+  "Save a png with the code and state in its metadata"
+  (def norm-namespace (str *ns*))
+  (def image-filename (str norm-namespace "-" framecount ".png"))
+  (def source-filename (str "src/" norm-namespace ".clj"))
+  (def image (.buffer canvas))
+  (println (str "image is " image))
+  (def code (slurp source-filename))
+  (def state (prettify state))
+  (def metadata {:code code :state state :author "Jonathan Dahan"})
+  (println "about to bake")
+  (metapng/bake image image-filename metadata)
+  (println "baking done")
+  (assoc state :snapshot false))
 
 (defn draw [canvas window ^long framecount _]
   "Draw calendar maybe"
