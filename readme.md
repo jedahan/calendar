@@ -1,12 +1,9 @@
-# calendar
+# hidpi example
 
-A quil sketch, made with [ink](http://jedahan.com/ink)
+A [clojure2d](https://clojure2d.github.io/clojure2d/) HiDPI example.
 
-A recreation of [this calendar][] by [popul aere produkt][]
+The basics are - render the canvas at 2x the size of the window.
 
-![calendar](calendar.png)
+Fonts also need to be scaled proportionally.
 
-(try `pngcheck -t calendar.png` for *magic*)
-
-[this calendar]: https://www.shopssl.de/epages/es105256.sf/en_GB/?ObjectPath=/Shops/es105256_einkaufen/Products/WK_2018_pink
-[popul aere produkt]: http://www.populaere-produkte.de/
+It would be best to use getPixelDensity and do this automatically.

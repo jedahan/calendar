@@ -1,11 +1,5 @@
 {:paths ["src"]
  :deps {
-  metapng {:mvn/version "0.1.2" }
   clojure2d {:mvn/version "0.0.7-SNAPSHOT"}
-  clj-time {:mvn/version "RELEASE"}
-  ar.com.hjg/pngj {:mvn/version "2.1.0"}
- }
- :aliases {
-  :dev {:override-deps {metapng {:local/root "/Users/micro/code/metapng"}}}
  }
 }
